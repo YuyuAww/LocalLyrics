@@ -30,7 +30,7 @@ import java.util.List;
  */
 public final class LyricLine {
     public final long start;
-    public final long end;
+    public long end;
     public final String text;
     public final List<LyricWord> words;
 

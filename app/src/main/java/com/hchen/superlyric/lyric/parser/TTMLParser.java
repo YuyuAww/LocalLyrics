@@ -285,7 +285,7 @@ public class TTMLParser {
                     if (wEnd <= 0) wEnd = wStart + 200;
                     words.add(new LyricWord(wStart, wEnd, spanText.trim()));
                 } else {
-                    words.add(new LyricWord.of(spanText.trim()));
+                    words.add(LyricWord.of(spanText.trim()));
                 }
                 fullText.append(spanText);
             }
