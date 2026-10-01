@@ -154,6 +154,11 @@ fun HomeLayout(
         )
     }
 
+    val lyricMode by viewModel.lyricMode.collectAsState()
+    val lyricModes = remember {
+        listOf("hook" to R.string.lyric_mode_hook, "network" to R.string.lyric_mode_network, "local" to R.string.lyric_mode_local)
+    }
+
     val state by AnalogReceiver.receiverFlow.collectAsState()
     val registered by AnalogReceiver.registeredFlow.collectAsState()
     val paused by AnalogReceiver.pausedFlow.collectAsState()
@@ -171,10 +176,23 @@ fun HomeLayout(
         }
     }
 
-    val settingsEntries = remember(logLevel) {
+    val settingsEntries = remember(logLevel, lyricMode) {
         listOf(
             DropdownEntry(
                 items = listOf(
+                    DropdownItem(
+                        text = context.getString(R.string.lyric_mode),
+                        children = lyricModes.map { (mode, resId) ->
+                            DropdownItem(
+                                text = context.getString(resId),
+                                selected = lyricMode == mode,
+                                onClick = {
+                                    PrefsTool.prefs(context).edit { putString(PrefsKey.LYRIC_MODE, mode) }
+                                    viewModel.handleAction(MainUiAction.UpdateLyricMode(mode))
+                                }
+                            )
+                        }
+                    ),
                     DropdownItem(
                         text = context.getString(R.string.api_test),
                         selected = false,

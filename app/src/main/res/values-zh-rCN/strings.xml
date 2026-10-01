@@ -40,8 +40,21 @@
     <string name="switch_mode">切换获取模式</string>
     <string name="switch_mode_hook">Hook</string>
     <string name="switch_mode_network">Network</string>
+    <string name="switch_mode_local">Local</string>
     <string name="switch_mode_restart_hint">已切换获取模式，重启目标应用后生效</string>
     <string name="badge_api">API</string>
+    <string name="badge_local">本地</string>
+    <string name="badge_hook">Hook</string>
+    <string name="badge_network">网络</string>
+
+    <!-- Lyric Mode -->
+    <string name="lyric_mode">歌词获取模式</string>
+    <string name="lyric_mode_summary">选择从音乐应用获取歌词的方式</string>
+    <string name="lyric_mode_hook">Hook（应用内 Hook）</string>
+    <string name="lyric_mode_network">Network（网络获取）</string>
+    <string name="lyric_mode_local">Local（本地歌词文件）</string>
+    <string name="local_lyric_directory">本地歌词目录</string>
+    <string name="local_lyric_directory_summary">搜索本地歌词文件的目录</string>
 
     <!-- About > Author -->
     <string name="developer">开发者</string>

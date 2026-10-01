@@ -38,6 +38,7 @@ import com.hchen.superlyric.data.LocalConfig;
 import com.hchen.superlyric.data.NetworkMode;
 import com.hchen.superlyric.data.PrefsKey;
 import com.hchen.superlyric.data.SupportApps;
+import com.hchen.superlyric.hook.local.LocalLyricPublisher;
 import com.hchen.superlyric.utils.LyricCacheStore;
 
 import java.lang.reflect.InvocationTargetException;
@@ -95,6 +96,91 @@ public final class HookEntrance extends ModuleEntrance {
         AndroidLog.logD(TAG, "handlePackageReady: " + param.getClassLoader() + ", " + param.getAppComponentFactory() + ", " + param);
         super.handlePackageReady(param);
 
+        if (!HookMaps.ON_PACKAGE_LOADED.containsKey(param.getPackageName())) return;
+
+        // Check global lyric mode: local mode uses LocalLyricPublisher for all supported apps
+        String lyricMode = PrefsTool.prefs().getString(PrefsKey.LYRIC_MODE, "hook");
+        if ("local".equals(lyricMode)) {
+            if (SupportApps.sMediaAppPackages.contains(param.getPackageName())) {
+                try {
+                    ClassLoader previousLoader = moduleClassLoaders.get(param.getPackageName());
+                    if (modules.containsKey(param.getPackageName()) && previousLoader == param.getClassLoader()) {
+                        for (AbsModule module : Objects.requireNonNull(modules.get(param.getPackageName()))) {
+                            module.handlePackageReady(param);
+                        }
+                        return;
+                    }
+                    if (previousLoader != null && previousLoader != param.getClassLoader()) {
+                        AndroidLog.logE(TAG, "Ignore package reload with a different ClassLoader: "
+                            + param.getPackageName());
+                        return;
+                    }
+
+                    AbsModule module = new LocalLyricPublisher();
+                    module.handlePackageReady(param);
+                    modules.put(param.getPackageName(), List.of(module));
+                    moduleClassLoaders.put(param.getPackageName(), param.getClassLoader());
+                } catch (Throwable t) {
+                    AndroidLog.logE(TAG, "Failed to load local lyric publisher for "
+                        + param.getPackageName(), t);
+                }
+            }
+            return;
+        }
+
+        // Network-only mode: force all apps to use network path
+        if ("network".equals(lyricMode)) {
+            try {
+                int version = PrefsTool.prefs().getInt("super_lyric_dexkit_cache_version", 0);
+                ModuleData.setClassLoader(param.getClassLoader());
+                DexkitCache.init(
+                    "superlyric",
+                    param.getClassLoader(),
+                    param.getApplicationInfo().sourceDir,
+                    param.getApplicationInfo().dataDir,
+                    version
+                );
+
+                Set<String> networks = PrefsTool.prefs().getStringSet(PrefsKey.NETWORK_LYRICS_MODE, new HashSet<>());
+
+                ClassLoader previousLoader = moduleClassLoaders.get(param.getPackageName());
+                if (modules.containsKey(param.getPackageName()) && previousLoader == param.getClassLoader()) {
+                    for (AbsModule module : Objects.requireNonNull(modules.get(param.getPackageName()))) {
+                        module.handlePackageReady(param);
+                    }
+                    return;
+                }
+                if (previousLoader != null && previousLoader != param.getClassLoader()) {
+                    AndroidLog.logE(TAG, "Ignore package reload with a different ClassLoader: "
+                        + param.getPackageName());
+                    return;
+                }
+
+                List<AbsModule> packageModules = new ArrayList<>();
+                for (String path : Objects.requireNonNull(HookMaps.ON_PACKAGE_LOADED.get(param.getPackageName()))) {
+                    if (path.contains("offline")) continue;
+                    try {
+                        AbsModule module = (AbsModule) HookEntrance.class.getClassLoader()
+                            .loadClass(path)
+                            .getDeclaredConstructor()
+                            .newInstance();
+                        module.handlePackageReady(param);
+                        packageModules.add(module);
+                    } catch (IllegalAccessException | InstantiationException |
+                             InvocationTargetException | NoSuchMethodException |
+                             ClassNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                modules.put(param.getPackageName(), packageModules);
+                moduleClassLoaders.put(param.getPackageName(), param.getClassLoader());
+            } finally {
+                DexkitCache.close();
+            }
+            return;
+        }
+
+        // Default: Hook mode (existing logic)
         if (HookMaps.ON_PACKAGE_LOADED.containsKey(param.getPackageName())) {
             try {
                 int version = PrefsTool.prefs().getInt("super_lyric_dexkit_cache_version", 0);

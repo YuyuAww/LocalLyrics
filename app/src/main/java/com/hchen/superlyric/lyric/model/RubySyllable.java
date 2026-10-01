@@ -1,31 +1,46 @@
 /*
  * This file is part of SuperLyric.
-
+ *
  * SuperLyric is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
-
- * Copyright (C) 2025-2026 HChenX
+ *
+ * Copyright (C) 2026 HChenX
  */
-package com.hchen.superlyric.data;
+package com.hchen.superlyric.lyric.model;
 
 /**
- * 本地配置项键名常量。
+ * Ruby annotation syllable for phonetic reading (注音).
+ * Mirrors Lyrico's LyricsRubySyllable.
  *
- * @author 焕晨HChen
+ * @author HChenX
  */
-public final class PrefsKey {
-    public static final String LOG_LEVEL = "log_level";
-    public static final String NETWORK_LYRICS_MODE = "network_lyrics_mode";
-    public static final String LYRIC_MODE = "lyric_mode";
-    public static final String LOCAL_LYRIC_DIRECTORY = "local_lyric_directory";
+public final class RubySyllable {
+    public final long start;
+    public final long end;
+    public final String text;
+
+    public RubySyllable(long start, long end, String text) {
+        this.start = start;
+        this.end = end;
+        this.text = text;
+    }
+
+    public RubySyllable(String text) {
+        this(0, 0, text);
+    }
+
+    @Override
+    public String toString() {
+        return "RubySyllable{" + text + "}";
+    }
 }

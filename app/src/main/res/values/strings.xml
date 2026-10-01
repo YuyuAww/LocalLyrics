@@ -40,8 +40,21 @@
     <string name="switch_mode">Switch acquisition mode</string>
     <string name="switch_mode_hook">Hook</string>
     <string name="switch_mode_network">Network</string>
+    <string name="switch_mode_local">Local</string>
     <string name="switch_mode_restart_hint">Mode switched. Restart the target app to apply.</string>
     <string name="badge_api">API</string>
+    <string name="badge_local">Local</string>
+    <string name="badge_hook">Hook</string>
+    <string name="badge_network">Network</string>
+
+    <!-- Lyric Mode -->
+    <string name="lyric_mode">Lyric Acquisition Mode</string>
+    <string name="lyric_mode_summary">Choose how lyrics are acquired from music apps</string>
+    <string name="lyric_mode_hook">Hook (in-app hook)</string>
+    <string name="lyric_mode_network">Network (online lyrics)</string>
+    <string name="lyric_mode_local">Local (local lyric files)</string>
+    <string name="local_lyric_directory">Local Lyric Directory</string>
+    <string name="local_lyric_directory_summary">Directory to search for local lyric files</string>
 
     <!-- About > Author -->
     <string name="developer">Developer</string>

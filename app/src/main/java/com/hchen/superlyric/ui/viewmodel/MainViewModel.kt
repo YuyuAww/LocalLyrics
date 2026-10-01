@@ -62,6 +62,9 @@ class MainViewModel(
     private val _logLevel = MutableStateFlow(0)
     val logLevel = _logLevel.asStateFlow()
 
+    private val _lyricMode = MutableStateFlow("hook")
+    val lyricMode: StateFlow<String> = _lyricMode.asStateFlow()
+
     private val _hookApps = MutableStateFlow<List<AppData>>(emptyList())
     val hookApps: StateFlow<List<AppData>> = _hookApps.asStateFlow()
 
@@ -92,6 +95,7 @@ class MainViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             if (prefs === sharedPreferences && Application.getRemotePreferences() === sharedPreferences) {
                 _logLevel.value = sharedPreferences.getInt(PrefsKey.LOG_LEVEL, 0)
+                _lyricMode.value = sharedPreferences.getString(PrefsKey.LYRIC_MODE, "hook") ?: "hook"
             }
         }
     }
@@ -121,6 +125,14 @@ class MainViewModel(
                         putStringSet(PrefsKey.NETWORK_LYRICS_MODE, newApps)
                     }
                     refreshData()
+                }
+            }
+
+            is MainUiAction.UpdateLyricMode -> {
+                val currentPrefs = Application.getRemotePreferences()
+                if (currentPrefs != null && prefs === currentPrefs) {
+                    currentPrefs.edit { putString(PrefsKey.LYRIC_MODE, action.value) }
+                    _lyricMode.value = action.value
                 }
             }
 
@@ -174,6 +186,7 @@ sealed class MainUiAction {
     data class CurrentApp(val appData: AppData) : MainUiAction()
     data class UpdateLogLevel(val value: Int) : MainUiAction()
     data class UpdateNetworkApp(val isAdd: Boolean, val packageName: String) : MainUiAction()
+    data class UpdateLyricMode(val value: String) : MainUiAction()
 }
 
 class MainViewModelFactory(
