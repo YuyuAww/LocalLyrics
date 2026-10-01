@@ -9,6 +9,9 @@ on:
     branches: [ "master" ]
     types: [ opened, synchronize, reopened ]
 
+env:
+  IS_MASTER_PUSH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+
 jobs:
   build:
 
@@ -35,7 +38,12 @@ jobs:
         with:
           cache-overwrite-existing: true
 
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # --- Signing: push to master only (secrets available) ---
       - name: Create Sign
+        if: env.IS_MASTER_PUSH
         run: |
           echo keyAlias=${{ secrets.ALIAS }} >> local.properties
           echo keyStorePassword=${{ secrets.KEY_STORE_PASSWORD }} >> local.properties
@@ -43,13 +51,18 @@ jobs:
           echo keyStoreFile=../key.jks >> local.properties
           echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > key.jks
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Build with Gradle
+      # --- Build ---
+      - name: Build (full, signed)
+        if: env.IS_MASTER_PUSH
         run: ./gradlew build
 
+      - name: Build (debug only, unsigned)
+        if: github.event_name == 'pull_request'
+        run: ./gradlew buildDebug
+
+      # --- Upload artifacts ---
       - name: Upload Release Apk
+        if: env.IS_MASTER_PUSH
         uses: actions/upload-artifact@v4
         with:
           name: SuperLyric_release
@@ -61,17 +74,21 @@ jobs:
           name: SuperLyric_debug
           path: ./app/build/outputs/apk/debug
 
+      # --- SHA256 (release only) ---
       - name: Find Apks
+        if: env.IS_MASTER_PUSH
         run: |
           echo "APK_RELEASE_PATH=$(find app/build/outputs/apk/release/ -name '*.apk')" >> $GITHUB_ENV
           echo "APK_DEBUG_PATH=$(find app/build/outputs/apk/debug/ -name '*.apk')" >> $GITHUB_ENV
 
       - name: Calculate SHA256
+        if: env.IS_MASTER_PUSH
         run: |
           echo "APK_RELEASE_SHA256=$(sha256sum ${{ env.APK_RELEASE_PATH }} | awk '{print $1}')" >> $GITHUB_ENV
           echo "APK_DEBUG_SHA256=$(sha256sum ${{ env.APK_DEBUG_PATH }} | awk '{print $1}')" >> $GITHUB_ENV
 
       - name: Show Apks SHA256
+        if: env.IS_MASTER_PUSH
         run: |
           echo "### Build Success" >> $GITHUB_STEP_SUMMARY
           echo "|Artifact|SHA256|" >> $GITHUB_STEP_SUMMARY
@@ -81,6 +98,7 @@ jobs:
 
       - name: Get App Version
         id: version
+        if: env.IS_MASTER_PUSH
         run: |
           VERSION_NAME=$(jq -r '.elements[0].versionName' app/build/outputs/apk/release/output-metadata.json)
           echo "VERSION_NAME=$VERSION_NAME"
@@ -88,6 +106,7 @@ jobs:
 
       - name: Check if Tag Exists
         id: check_tag
+        if: env.IS_MASTER_PUSH
         run: |
           TAG=${{ steps.version.outputs.version }}
           if git ls-remote --tags origin | grep -q "refs/tags/$TAG"; then
@@ -98,6 +117,7 @@ jobs:
 
       - name: Extract Clean Changelog
         id: changelog
+        if: env.IS_MASTER_PUSH
         run: |
           LOG=$(echo "${{ github.event.head_commit.message }}" | tail -n +3)
           echo "log_body<<EOF" >> $GITHUB_OUTPUT
@@ -105,7 +125,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        if: steps.check_tag.outputs.exists == 'false' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: env.IS_MASTER_PUSH && steps.check_tag.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version }}
