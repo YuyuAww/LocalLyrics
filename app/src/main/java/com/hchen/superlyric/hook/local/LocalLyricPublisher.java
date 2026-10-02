@@ -227,9 +227,9 @@ public class LocalLyricPublisher extends AbsPublisher {
         String artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST);
         String album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM);
 
-        // Get file path for pairing
-        Uri uri = metadata.getUri(MediaMetadata.MEDIA_URI);
-        String filePath = uri != null ? uri.toString() : null;
+        // Get file path for pairing (METADATA_KEY_MEDIA_URI is a String key, not a URI key)
+        String uriStr = metadata.getString(MediaMetadata.METADATA_KEY_MEDIA_URI);
+        String filePath = uriStr;
 
         String songId = mediaId != null ? mediaId : "";
         String safeTitle = title != null ? title : "";
