@@ -398,7 +398,7 @@ public class LocalLyricPublisher extends AbsPublisher {
      * Resolve a content:// URI to a real file path using MediaStore.
      */
     @Nullable
-    private static String resolveContentUri(@NonNull Context context, @NonNull String uriStr) {
+    private String resolveContentUri(@NonNull Context context, @NonNull String uriStr) {
         try {
             Uri uri = Uri.parse(uriStr);
             ContentResolver resolver = context.getContentResolver();
