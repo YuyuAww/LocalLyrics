@@ -27,11 +27,15 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.SystemClock;
 import android.text.TextUtils;
+import android.content.ContentResolver;
+import android.database.Cursor;
+import android.provider.MediaStore;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.hchen.hooktool.hook.AbsHook;
+import com.hchen.hooktool.utils.PrefsTool;
 import com.hchen.superlyric.data.PrefsKey;
 import com.hchen.superlyric.hook.AbsPublisher;
 import com.hchen.superlyric.lyric.LyricDataConverter;
@@ -149,7 +153,8 @@ public class LocalLyricPublisher extends AbsPublisher {
         super.onApplicationCreated(context);
         mAppContext = context.getApplicationContext();
 
-        SharedPreferences prefs = context.getSharedPreferences("super_lyric_prefs", Context.MODE_PRIVATE);
+        // Read from SuperLyric's shared prefs (not the hooked app's private prefs)
+        SharedPreferences prefs = PrefsTool.prefs(context);
         String lyricDir = prefs.getString(PrefsKey.LOCAL_LYRIC_DIRECTORY, null);
         mResolver = new LocalLyricResolver(lyricDir);
 
@@ -230,6 +235,10 @@ public class LocalLyricPublisher extends AbsPublisher {
         // Get file path for pairing (METADATA_KEY_MEDIA_URI is a String key, not a URI key)
         String uriStr = metadata.getString(MediaMetadata.METADATA_KEY_MEDIA_URI);
         String filePath = uriStr;
+        // Resolve content:// URI to real file path
+        if (uriStr != null && uriStr.startsWith("content://")) {
+            filePath = resolveContentUri(mAppContext, uriStr);
+        }
 
         String songId = mediaId != null ? mediaId : "";
         String safeTitle = title != null ? title : "";
@@ -237,7 +246,7 @@ public class LocalLyricPublisher extends AbsPublisher {
         String safeAlbum = album != null ? album : "";
 
         // Resolve local lyric files
-        ParsedLyrics lyrics = mResolver.resolve(songId, filePath);
+        ParsedLyrics lyrics = mResolver.resolve(songId, filePath, safeTitle, safeArtist);
 
         if (lyrics == null) {
             logD(tag, "No local lyric file found for song: " + safeTitle + " (id=" + songId + ")");
@@ -383,5 +392,28 @@ public class LocalLyricPublisher extends AbsPublisher {
             if (position >= line.start && position < line.end) return i;
         }
         return -1;
+    }
+
+    /**
+     * Resolve a content:// URI to a real file path using MediaStore.
+     */
+    @Nullable
+    private static String resolveContentUri(@NonNull Context context, @NonNull String uriStr) {
+        try {
+            Uri uri = Uri.parse(uriStr);
+            ContentResolver resolver = context.getContentResolver();
+            try (Cursor cursor = resolver.query(uri,
+                    new String[]{MediaStore.Audio.Media.DATA}, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int colIndex = cursor.getColumnIndex(MediaStore.Audio.Media.DATA);
+                    if (colIndex >= 0) {
+                        return cursor.getString(colIndex);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logE(tag, "Failed to resolve content URI: " + uriStr, e);
+        }
+        return null;
     }
 }

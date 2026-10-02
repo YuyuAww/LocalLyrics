@@ -27,6 +27,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -53,9 +55,11 @@ public class LocalLyricResolver {
      *
      * @param songId   the song ID from MediaSession (may be null)
      * @param filePath the audio file path from MediaSession (may be null)
+     * @param title    the song title (may be null)
+     * @param artist   the song artist (may be null)
      * @return parsed lyrics, or null if no matching file found
      */
-    public ParsedLyrics resolve(String songId, String filePath) {
+    public ParsedLyrics resolve(String songId, String filePath, String title, String artist) {
         // Strategy 1: Song ID matching (priority)
         if (songId != null && !songId.isEmpty() && lyricDirectory != null && !lyricDirectory.isEmpty()) {
             File idFile = findById(lyricDirectory, songId);
@@ -67,7 +71,7 @@ public class LocalLyricResolver {
             }
         }
 
-        // Strategy 2: File path matching (fallback)
+        // Strategy 2: File path matching (paired file next to audio file)
         if (filePath != null && !filePath.isEmpty()) {
             File pairedFile = findPairedFile(filePath);
             if (pairedFile != null) {
@@ -75,6 +79,82 @@ public class LocalLyricResolver {
                 if (content != null) {
                     return LyricParserFactory.parse(content);
                 }
+            }
+        }
+
+        // Strategy 3: Title/Artist filename search in configured directory
+        if (title != null && !title.isEmpty() && lyricDirectory != null && !lyricDirectory.isEmpty()) {
+            String searchKey = buildSearchKey(title, artist);
+            File found = findByFilename(lyricDirectory, searchKey);
+            if (found != null) {
+                String content = readFile(found);
+                if (content != null) {
+                    return LyricParserFactory.parse(content);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Build a normalized search key from title and artist.
+     * Strips punctuation, normalizes whitespace, and appends artist if available.
+     */
+    static String buildSearchKey(String title, String artist) {
+        String safeTitle = title.replaceAll("[\\\\/:*?\"<>|]", " ").trim();
+        if (artist != null && !artist.isEmpty()) {
+            String safeArtist = artist.replaceAll("[\\\\/:*?\"<>|]", " ").trim();
+            return safeTitle + " - " + safeArtist;
+        }
+        return safeTitle;
+    }
+
+    /**
+     * Search for a lyric file by filename in the configured directory.
+     * Matches "Title - Artist.lrc", "Title.lrc", or "Title - Artist.txt", etc.
+     */
+    static File findByFilename(String directory, String searchKey) {
+        File dir = new File(directory);
+        if (!dir.isDirectory()) return null;
+
+        File[] files = dir.listFiles();
+        if (files == null) return null;
+
+        String[] extensions = {".lrc", ".txt", ".ttml"};
+
+        // Strategy A: exact match "Title - Artist.ext"
+        for (String ext : extensions) {
+            File f = new File(dir, searchKey + ext);
+            if (f.isFile() && isValidFile(f)) return f;
+        }
+
+        // Strategy B: case-insensitive match
+        String lowerKey = searchKey.toLowerCase(Locale.ROOT);
+        for (File f : files) {
+            if (!f.isFile()) continue;
+            String name = f.getName().toLowerCase(Locale.ROOT);
+            String nameNoExt = name.contains(".")
+                    ? name.substring(0, name.lastIndexOf('.'))
+                    : name;
+            if (nameNoExt.equals(lowerKey)) {
+                if (isValidFile(f)) return f;
+            }
+        }
+
+        // Strategy C: title-only match "Title.ext" (artist part stripped)
+        String titleOnly = searchKey.contains(" - ")
+                ? searchKey.substring(0, searchKey.indexOf(" - "))
+                : searchKey;
+        String lowerTitle = titleOnly.toLowerCase(Locale.ROOT);
+        for (File f : files) {
+            if (!f.isFile()) continue;
+            String name = f.getName().toLowerCase(Locale.ROOT);
+            String nameNoExt = name.contains(".")
+                    ? name.substring(0, name.lastIndexOf('.'))
+                    : name;
+            if (nameNoExt.equals(lowerTitle)) {
+                if (isValidFile(f)) return f;
             }
         }
 
